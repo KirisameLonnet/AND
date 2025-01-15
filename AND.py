@@ -52,8 +52,17 @@ def download_song(song_id, level='lossless', type_='down'):
     
     if download_url.startswith("下载地址："):
         download_url = download_url.replace("下载地址：", "").strip()
-    
-    return download_url
+
+        # 检查下载链接是否有效
+        if download_url.startswith('http') and '.' in download_url:
+            return download_url
+        else:
+            print(f"无效下载地址: {download_url}")
+            return None
+    else:
+        print("未能获取到下载地址！")
+        return None
+
 
 # 保存歌曲
 def save_song(song_url, song_name, artist_name):
