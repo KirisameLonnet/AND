@@ -3,6 +3,16 @@ import requests
 import subprocess
 import os
 
+# 检查歌曲是否已下载
+def is_song_downloaded(song_name, artist_name):
+    safe_song_name = song_name.replace('/', '_') 
+    safe_artist_name = artist_name.replace('/', '_')
+    song_filename = f"{safe_artist_name} - {safe_song_name}.mp3"
+    song_path = os.path.join(os.getcwd(), "Downloads", song_filename)
+    
+    # 文件存在
+    return os.path.exists(song_path)
+
 # 网易云搜索API
 def search_song(song_title, artist_name):
     search_url = f'https://music.163.com/api/search/get'
@@ -31,7 +41,7 @@ def search_song(song_title, artist_name):
     else:
         return None
 
-# 下载歌曲
+# 下载
 def download_song(song_id, level='lossless', type_='down'):
     netease_url_path = os.path.join(os.getcwd(), 'Netease_url', 'Netease_url.py')
     cmd = f"python {netease_url_path} {song_id} {level} {type_}"
@@ -73,6 +83,12 @@ def process_csv(csv_file, quality):
             song_title = row['Track name']
             artist_name = row['Artist name']
             print(f"正在搜索: {song_title} - {artist_name}")
+            
+            # 如果歌曲已经下载过，跳过
+            if is_song_downloaded(song_title, artist_name):
+                print(f"歌曲已下载，跳过: {song_title} - {artist_name}")
+                continue
+
             song_info = search_song(song_title, artist_name)
             if song_info:
                 song_id, song_name, artist_name = song_info
