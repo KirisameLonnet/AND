@@ -2,16 +2,8 @@ import csv
 import requests
 import subprocess
 import os
-
-# 检查歌曲是否已下载
-def is_song_downloaded(song_name, artist_name):
-    safe_song_name = song_name.replace('/', '_') 
-    safe_artist_name = artist_name.replace('/', '_')
-    song_filename = f"{safe_artist_name} - {safe_song_name}.mp3"
-    song_path = os.path.join(os.getcwd(), "Downloads", song_filename)
-    
-    # 文件存在
-    return os.path.exists(song_path)
+from mutagen.mp3 import MP3
+from mutagen.id3 import ID3, TIT2, TPE1, TALB, TCON, TDRC
 
 # 网易云搜索API
 def search_song(song_title, artist_name):
@@ -41,31 +33,22 @@ def search_song(song_title, artist_name):
     else:
         return None
 
-# 下载
+# 下载歌曲
 def download_song(song_id, level='lossless', type_='down'):
     netease_url_path = os.path.join(os.getcwd(), 'Netease_url', 'Netease_url.py')
     cmd = f"python {netease_url_path} {song_id} {level} {type_}"
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     
-    # 获取下载链接
+    # 获取链接
     download_url = result.stdout.strip()
     
     if download_url.startswith("下载地址："):
         download_url = download_url.replace("下载地址：", "").strip()
-
-        # 检查下载链接是否有效
-        if download_url.startswith('http') and '.' in download_url:
-            return download_url
-        else:
-            print(f"无效下载地址: {download_url}")
-            return None
-    else:
-        print("未能获取到下载地址！")
-        return None
-
+    
+    return download_url
 
 # 保存歌曲
-def save_song(song_url, song_name, artist_name):
+def save_song(song_url, song_name, artist_name, album_name):
     safe_song_name = song_name.replace('/', '_') 
     safe_artist_name = artist_name.replace('/', '_')
     song_filename = f"{safe_artist_name} - {safe_song_name}.mp3"
@@ -79,10 +62,27 @@ def save_song(song_url, song_name, artist_name):
                 if chunk:
                     f.write(chunk)
         print(f"下载完成: {song_filename}")
+        # 更新元数据
+        update_metadata(song_path, song_name, artist_name, album_name)
     else:
         print(f"下载失败: {song_filename}")
 
-# 读取 CSV 并处理每一行
+# 更新歌曲元数据
+def update_metadata(file_path, title, artist, album):
+    try:
+        audio = MP3(file_path, ID3=ID3)
+        if audio.tags is None:
+            audio.add_tags()
+        audio.tags.add(TIT2(encoding=3, text=title))  # 标题
+        audio.tags.add(TPE1(encoding=3, text=artist))  # 艺术家
+        audio.tags.add(TALB(encoding=3, text=album))  # 专辑
+        # 可以添加更多元数据，比如流派 (TCON)，年份 (TDRC)
+        audio.save()
+        print(f"元数据已更新: {file_path}")
+    except Exception as e:
+        print(f"更新元数据时出错: {e}")
+
+# 读csv
 def process_csv(csv_file, quality):
     not_found_songs = []
     
@@ -91,13 +91,8 @@ def process_csv(csv_file, quality):
         for row in reader:
             song_title = row['Track name']
             artist_name = row['Artist name']
+            album_name = row.get('Album', 'Unknown Album')
             print(f"正在搜索: {song_title} - {artist_name}")
-            
-            # 如果歌曲已经下载过，跳过
-            if is_song_downloaded(song_title, artist_name):
-                print(f"歌曲已下载，跳过: {song_title} - {artist_name}")
-                continue
-
             song_info = search_song(song_title, artist_name)
             if song_info:
                 song_id, song_name, artist_name = song_info
@@ -107,7 +102,7 @@ def process_csv(csv_file, quality):
                 download_url = download_song(song_id, quality)
                 if download_url:
                     print(f"下载地址：{download_url}")
-                    save_song(download_url, song_name, artist_name)  # 下载
+                    save_song(download_url, song_name, artist_name, album_name)  # 下载
                 else:
                     print(f"未能获取到下载链接: {song_name}")
             else:
@@ -118,8 +113,7 @@ def process_csv(csv_file, quality):
                     'Album': row['Album'],
                     'Playlist name': row['Playlist name'],
                     'Type': row['Type'],
-                    'ISRC': row['ISRC'],
-                    'Apple - id': row['Apple - id']
+                    'ISRC': row['ISRC']
                 })
     
     # 没找到的歌导出csv
@@ -132,13 +126,7 @@ def process_csv(csv_file, quality):
         print(f"未找到的歌曲已保存到 'not_found_songs.csv'")
 
 if __name__ == "__main__":
-    # 设置音质选择，参考 https://github.com/Suxiaoqinx/Netease_url 的音质说明
-    '''
-    standard(标准音质), exhigh(极高音质), lossless(无损音质), hires(Hi-Res音质), jyeffect(高清环绕声), sky(沉浸环绕声), jymaster(超清母带)
-
-    黑胶VIP音质选择 standard, exhigh, lossless, hires, jyeffect
-    黑胶SVIP音质选择 sky, jymaster
-    '''
+    # 设置音质选择
     quality = 'hires'  # 默认音质选择，可以修改为其他音质
     csv_file = 'playlist.csv'  # csv文件路径，自己替换
     process_csv(csv_file, quality)
