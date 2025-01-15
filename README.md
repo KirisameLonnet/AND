@@ -1,4 +1,8 @@
-# 网易云音乐批量下载脚本
+# AND - AppleMusic 2 Netease Downloader
+
+通过从TuneMyMusic导出的CSV文件批量下载网易云音乐中的歌曲。A tool to batch download music from Netease Cloud based on playlists exported from TuneMyMusic CSV files.
+
+*或许也可以下载别的平台的，不是apple music专用，只是我的使用需求是apple music，只要是tunemymusic.com能导出csv的大概都可以*
 
 此脚本用于从 [www.tunemymusic.com](https://www.tunemymusic.com) 获取的音乐软件歌单 CSV 文件中下载对应的音乐，并且能够处理不同的音质选择，未找到的歌曲会被记录到一个新的 CSV 文件中。
 
